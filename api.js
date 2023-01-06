@@ -30,7 +30,7 @@ var sessions_settings_object = {
     activeDuration: 1000 * 60 * 5, // Extend for five minutes if actively used
     cookie: {
         httpOnly: true,
-        secure: true
+        secure: process.env.SSL_ENABLE === 'true'
     }
 }
 function session_wrapper_function(req, res, next) {
@@ -48,7 +48,6 @@ async function set_up_api_server(app) {
     if (!session_secret_setting) {
     	console.error(`No session secret is set, can't start API server (this really shouldn't happen...)!`);
     	throw new Error('NO_SESSION_SECRET_SET');
-    	return
     }
 
     const updated_session_settings = {
@@ -94,9 +93,17 @@ async function set_up_api_server(app) {
             constants.API_BASE_PATH + 'settings',
         ];
 
+        // Check if the path being accessed required authentication
+        var requires_authentication = false;
+        AUTHENTICATION_REQUIRED_ROUTES.map(authenticated_route => {
+            if(req.path.toLowerCase().startsWith(authenticated_route)) {
+                requires_authentication = true;
+            }
+        });
+
         // If the route is not one of the authentication required routes
         // then we can allow it through.
-        if(!AUTHENTICATION_REQUIRED_ROUTES.includes(req.path)) {
+        if(!requires_authentication) {
             next();
             return;
         }
